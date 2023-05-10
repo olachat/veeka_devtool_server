@@ -99,9 +99,9 @@ function forwardAppMessage(ws, clientId, obj) {
     if (bindMap.has(clientId)) {
         var set = bindMap.get(clientId)
         for (var id of set) {
-            console.log(`forwardAppMessage: ${id}`)
+            // console.log(`forwardAppMessage: ${id}`)
             if (webClientSocketMap.has(id)) {
-                console.log(`sendMessageToWeb: ${id}`)
+                // console.log(`sendMessageToWeb: ${id}`)
                 var clientSocket = webClientSocketMap.get(id)
                 sendMessageToClient(clientSocket, obj)
             }
