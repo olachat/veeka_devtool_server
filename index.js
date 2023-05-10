@@ -59,7 +59,7 @@ function registerApp(ws, clientId, obj) {
 
 function unregisterApp(ws, clientId, obj) {
     console.log(`unregisterApp : ${clientId}`)
-    deleteAppClient(clientId)
+    deleteAppClient(clientId, true)
     obj.success = true
     sendMessageToClient(ws, obj)
 }
@@ -80,7 +80,7 @@ function bindApp(ws, clientId, obj) {
 
 function unbindApp(ws, clientId, obj) {
     console.log(`unbindApp: ${clientId}`)
-    deleteWebClient(clientId)
+    deleteWebClient(clientId, true)
     obj.success = true
     sendMessageToClient(ws, obj)
 }
@@ -120,24 +120,29 @@ function sendMessageToClient(ws, map) {
 function onClientClose(clientId) {
     console.log(`client close: ${clientId}`)
     if (appClientSocketMap.has(clientId)) {
-        deleteAppClient(clientId)
+        deleteAppClient(clientId, false)
     } else if (webClientSocketMap.has(clientId)) {
-        deleteWebClient(clientId)
+        deleteWebClient(clientId, false)
     }
 }
 
-function deleteAppClient(clientId) {
+function deleteAppClient(clientId, unbind) {
     console.log(`deleteApp: ${clientId}`)
     appClientSocketMap.delete(clientId)
-    bindMap.delete(clientId)
+    if (unbind) {
+        bindMap.delete(clientId)
+    }
 }
 
-function deleteWebClient(clientId) {
+function deleteWebClient(clientId, unbind) {
     console.log(`deleteWebClient: ${clientId}`)
     webClientSocketMap.delete(clientId)
-    bindMap.forEach(function (value, key) {
-        value.delete(clientId)
-    })
+    if (unbind) {
+        bindMap.forEach(function (value, key) {
+            value.delete(clientId)
+        })
+    }
+
 }
 
 function onClientError(clientId, error) {
@@ -147,7 +152,6 @@ function onClientError(clientId, error) {
 // 创建连接
 wss.on("connection", (ws, req) => {
     const clientId = getClientId(req.socket)
-    req.socket.name;
     console.log(`client connected: ${clientId}`);
     ws.on("message", (data) => {
         onReceiveData(ws, clientId, data)
