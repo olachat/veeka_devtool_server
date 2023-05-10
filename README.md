@@ -2,7 +2,7 @@
 
 
 nodejs编写的websocket服务端，部署在58环境的服务器上。用于实现veeka 客户端的http请求日志和埋点日志转发到网页端，方便查看。
-网页端：https://page.sgola.cc/wh_veeka/dev_tool/src/#/
+网页端：http://172.19.20.35:8080/veeka_tool/index.html#/
 <img width="1080" alt="image" src="https://github.com/olachat/veeka_devtool_server/assets/113671783/89888d5c-1bbb-4de0-a9cd-f4f789c697dc">
 <img width="1080" alt="image" src="https://github.com/olachat/veeka_devtool_server/assets/113671783/b522e199-ba46-4b9b-b1e6-e19fb1153880">
 
