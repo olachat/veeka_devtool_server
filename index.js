@@ -28,7 +28,7 @@ function getClientId(socket) {
 
 function onReceiveData(ws, clientId, data) {
     var obj = JSON.parse(data);
-    console.log(`onReceiveData from ${clientId}: name=${obj.name}`)
+    // console.log(`onReceiveData from ${clientId}: name=${obj.name}`)
 
     if (obj.name == message_request_register_app) {
         registerApp(ws, clientId, obj)
