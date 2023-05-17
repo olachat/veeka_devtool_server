@@ -8,8 +8,10 @@ const message_request_unbind = 'request.unbind.app';
 const message_request_register_app = 'request.register.app';
 /// 注销在线设备
 const message_request_unregister_app = 'request.unregister.app';
-/// 转发设备消息
+/// 转发app消息到web端
 const message_forward_app_msg = 'forward.app.message';
+/// 转发web端消息到app端
+const message_forward_web_msg = 'forward.web.message';
 
 
 // 载入 ws 库
@@ -18,9 +20,10 @@ const port = 9988
 // 创建一个 websocket 服务
 const wss = new WebSocketServer.Server({ port: port })
 
-let appClientSocketMap = new Map() // ip:socket
-let webClientSocketMap = new Map() //ip:socket
-let bindMap = new Map() //sender ip:receiver_ip1,receiver_ip2
+let appClientSocketMap = new Map() // app_clientId:socket
+let webClientSocketMap = new Map() //web_clientId:socket
+let bindMap = new Map() //app_clientId:web_clientId1,web_clientId2
+let appInfoMap = new Map() //app_clientId:appinfo
 
 function getClientId(socket) {
     return socket.remoteAddress
@@ -42,21 +45,28 @@ function onReceiveData(ws, clientId, data) {
         getAppClientList(ws, clientId, obj)
     } else if (obj.name == message_forward_app_msg) {
         forwardAppMessage(ws, clientId, obj)
+    } else if (obj.name == message_forward_web_msg) {
+        forwardWebMessage(ws, clientId, obj)
     }
 }
 
+//手机端注册，注册后网页端可以查到该设备
 function registerApp(ws, clientId, obj) {
     appClientSocketMap.set(clientId, ws)
     var hasRegisterd = bindMap.has(clientId);
     console.log(`registerApp: ${clientId} hasRegisterd=${hasRegisterd}`)
     if (!hasRegisterd) {
         bindMap.set(clientId, new Set())
+        if(obj.info){
+            appInfoMap.set(clientId,obj.info)
+        }
         console.log(`registerApp: ${clientId} success`)
         obj.success = true
         sendMessageToClient(ws, obj)
     }
 }
 
+//手机端取消注册
 function unregisterApp(ws, clientId, obj) {
     console.log(`unregisterApp : ${clientId}`)
     deleteAppClient(clientId, true)
@@ -65,6 +75,7 @@ function unregisterApp(ws, clientId, obj) {
 }
 
 
+///web端绑定手机
 function bindApp(ws, clientId, obj) {
     var appClientId = obj.data.app
     console.log(`bindApp: appClientId=${appClientId} webClientId=${clientId}`)
@@ -78,6 +89,7 @@ function bindApp(ws, clientId, obj) {
     }
 }
 
+///web端取消绑定
 function unbindApp(ws, clientId, obj) {
     console.log(`unbindApp: ${clientId}`)
     deleteWebClient(clientId, true)
@@ -85,23 +97,29 @@ function unbindApp(ws, clientId, obj) {
     sendMessageToClient(ws, obj)
 }
 
+///web端获取 app列表，用来选择一个绑定
 function getAppClientList(ws, clientId, obj) {
     var set = new Set()
     appClientSocketMap.forEach(function (value, key) {
-        set.add(key)
+        var item = new Map()
+        item.set('clientId',key)
+        if(appInfoMap.has(key)){
+            var clientInfo = appInfoMap.get(key)
+            item.set('clientInfo',clientInfo)
+        }
+        set.add(item)
     })
     obj.data = set
     obj.success = true
     sendMessageToClient(ws, obj)
 }
 
+///app端将数据传给web端
 function forwardAppMessage(ws, clientId, obj) {
     if (bindMap.has(clientId)) {
         var set = bindMap.get(clientId)
         for (var id of set) {
-            // console.log(`forwardAppMessage: ${id}`)
             if (webClientSocketMap.has(id)) {
-                // console.log(`sendMessageToWeb: ${id}`)
                 var clientSocket = webClientSocketMap.get(id)
                 sendMessageToClient(clientSocket, obj)
             }
@@ -109,6 +127,20 @@ function forwardAppMessage(ws, clientId, obj) {
     }
 }
 
+///web端将数据传给app端
+function forwardWebMessage(ws, clientId, obj) {
+    bindMap.forEach(function (value, key) {
+        if (value.has(clientId)) {
+            if (appClientSocketMap.has(key)) {
+                var clientSocket = appClientSocketMap.get(key)
+                sendMessageToClient(clientSocket, obj)
+            }
+        }
+    })
+}
+
+
+///将数据转发给指定的client socket 
 function sendMessageToClient(ws, map) {
     var message = JSON.stringify(
         map,
@@ -116,6 +148,7 @@ function sendMessageToClient(ws, map) {
     )
     ws.send(message)
 }
+
 
 function onClientClose(clientId) {
     console.log(`client close: ${clientId}`)
