@@ -6,8 +6,6 @@ const message_request_bind = 'request.bind.app';
 const message_request_unbind = 'request.unbind.app';
 /// 注册在线设备
 const message_request_register_app = 'request.register.app';
-/// 注销在线设备
-const message_request_unregister_app = 'request.unregister.app';
 /// 转发app消息到web端
 const message_forward_app_msg = 'forward.app.message';
 /// 转发web端消息到app端
@@ -20,13 +18,14 @@ const port = 9988
 // 创建一个 websocket 服务
 const wss = new WebSocketServer.Server({ port: port })
 
-let appClientSocketMap = new Map() // app_clientId:socket
-let webClientSocketMap = new Map() //web_clientId:socket
-let bindMap = new Map() //app_clientId:web_clientId1,web_clientId2
-let appInfoMap = new Map() //app_clientId:appinfo
+let appClientSocketMap = new Map() // app_clientId : socket
+let webClientSocketMap = new Map() //web_clientId : socket
+let bindMap = new Map() //app_clientId : [web_clientId1 , web_clientId2]
+let appInfoMap = new Map() //app_clientId : appinfo
 
 function getClientId(socket) {
-    return socket.remoteAddress
+    var ipAddress = socket.remoteAddress
+    return ipAddress.replace('::ffff:', '')
 }
 
 function onReceiveData(ws, clientId, data) {
@@ -35,8 +34,6 @@ function onReceiveData(ws, clientId, data) {
 
     if (obj.name == message_request_register_app) {
         registerApp(ws, clientId, obj)
-    } else if (obj.name == message_request_unregister_app) {
-        unregisterApp(ws, clientId, obj)
     } else if (obj.name == message_request_bind) {
         bindApp(ws, clientId, obj)
     } else if (obj.name == message_request_unbind) {
@@ -54,7 +51,7 @@ function onReceiveData(ws, clientId, data) {
 function registerApp(ws, clientId, obj) {
     appClientSocketMap.set(clientId, ws)
     var hasRegisterd = bindMap.has(clientId);
-    console.log(`registerApp: ${clientId} hasRegisterd=${hasRegisterd} obj=${obj}`)
+    console.log(`registerApp: ${clientId} hasRegisterd=${hasRegisterd}`)
     if (!hasRegisterd) {
         bindMap.set(clientId, new Set())
         if (obj.info) {
@@ -65,15 +62,6 @@ function registerApp(ws, clientId, obj) {
         sendMessageToClient(ws, obj)
     }
 }
-
-//手机端取消注册
-function unregisterApp(ws, clientId, obj) {
-    console.log(`unregisterApp : ${clientId}`)
-    deleteAppClient(clientId, true)
-    obj.success = true
-    sendMessageToClient(ws, obj)
-}
-
 
 ///web端绑定手机
 function bindApp(ws, clientId, obj) {
@@ -102,13 +90,14 @@ function getAppClientList(ws, clientId, obj) {
     var set = new Set()
     appClientSocketMap.forEach(function (value, key) {
         var item = new Map()
-        item.set('clientId', key)
+        item.clientId = key
         if (appInfoMap.has(key)) {
             var clientInfo = appInfoMap.get(key)
-            item.set('clientInfo', clientInfo)
+            item.clientInfo = clientInfo
         }
         set.add(item)
     })
+
     obj.data = set
     obj.success = true
     sendMessageToClient(ws, obj)
@@ -153,19 +142,31 @@ function sendMessageToClient(ws, map) {
 function onClientClose(clientId) {
     console.log(`client close: ${clientId}`)
     if (appClientSocketMap.has(clientId)) {
-        deleteAppClient(clientId, false)
+        ///app端掉线时，清除绑定关系
+        deleteAppClient(clientId)
     } else if (webClientSocketMap.has(clientId)) {
+        ///web端掉线时，不清除绑定关系
         deleteWebClient(clientId, false)
     }
 }
 
-function deleteAppClient(clientId, unbind) {
+function deleteAppClient(clientId) {
     console.log(`deleteApp: ${clientId}`)
     appClientSocketMap.delete(clientId)
     appInfoMap.delete(clientId)
-    if (unbind) {
-        bindMap.delete(clientId)
+    ///通知web端
+    if (bindMap.has(clientId)) {
+        var set = bindMap.get(clientId)
+        for (var id of set) {
+            if (webClientSocketMap.has(id)) {
+                var socket = webClientSocketMap.get(id)
+                var obj = new Map()
+                obj.name = message_request_unbind
+                sendMessageToClient(socket, obj)
+            }
+        }
     }
+    bindMap.delete(clientId)
 }
 
 function deleteWebClient(clientId, unbind) {
