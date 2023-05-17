@@ -54,11 +54,11 @@ function onReceiveData(ws, clientId, data) {
 function registerApp(ws, clientId, obj) {
     appClientSocketMap.set(clientId, ws)
     var hasRegisterd = bindMap.has(clientId);
-    console.log(`registerApp: ${clientId} hasRegisterd=${hasRegisterd}`)
+    console.log(`registerApp: ${clientId} hasRegisterd=${hasRegisterd} obj=${obj}`)
     if (!hasRegisterd) {
         bindMap.set(clientId, new Set())
-        if(obj.info){
-            appInfoMap.set(clientId,obj.info)
+        if (obj.info) {
+            appInfoMap.set(clientId, obj.info)
         }
         console.log(`registerApp: ${clientId} success`)
         obj.success = true
@@ -102,10 +102,10 @@ function getAppClientList(ws, clientId, obj) {
     var set = new Set()
     appClientSocketMap.forEach(function (value, key) {
         var item = new Map()
-        item.set('clientId',key)
-        if(appInfoMap.has(key)){
+        item.set('clientId', key)
+        if (appInfoMap.has(key)) {
             var clientInfo = appInfoMap.get(key)
-            item.set('clientInfo',clientInfo)
+            item.set('clientInfo', clientInfo)
         }
         set.add(item)
     })
@@ -162,6 +162,7 @@ function onClientClose(clientId) {
 function deleteAppClient(clientId, unbind) {
     console.log(`deleteApp: ${clientId}`)
     appClientSocketMap.delete(clientId)
+    appInfoMap.delete(clientId)
     if (unbind) {
         bindMap.delete(clientId)
     }
