@@ -1,11 +1,13 @@
-/// 获取在线设备列表
+/// 获取在线app列表
 const message_request_app_list = 'request.app.list';
 /// 绑定在线设备
 const message_request_bind = 'request.bind.app';
 /// 取消绑定
 const message_request_unbind = 'request.unbind.app';
-/// 注册在线设备
+/// 注册在线app
 const message_request_register_app = 'request.register.app';
+/// 注册在线web
+const message_request_register_web = 'request.register.web';
 /// 转发app消息到web端
 const message_forward_app_msg = 'forward.app.message';
 /// 转发web端消息到app端
@@ -34,6 +36,8 @@ function onReceiveData(ws, clientId, data) {
 
     if (obj.name == message_request_register_app) {
         registerApp(ws, clientId, obj)
+    } else if (obj.name == message_request_register_web) {
+        registerWeb(ws, clientId, obj)
     } else if (obj.name == message_request_bind) {
         bindApp(ws, clientId, obj)
     } else if (obj.name == message_request_unbind) {
@@ -47,7 +51,7 @@ function onReceiveData(ws, clientId, data) {
     }
 }
 
-//手机端注册，注册后网页端可以查到该设备
+//手机端上线，网页端可以查到该设备
 function registerApp(ws, clientId, obj) {
     appClientSocketMap.set(clientId, ws)
     console.log(`registerApp: ${clientId}`)
@@ -80,11 +84,29 @@ function registerApp(ws, clientId, obj) {
     }
 }
 
+//网页端上线
+function registerWeb(ws, clientId, obj) {
+    webClientSocketMap.set(clientId, ws)
+    console.log(`registerWeb: ${clientId}`)
+    //如果查到绑定关系，并且对应的app端在线，则通知网页端已绑定
+    bindMap.forEach(function (value, key) {
+        if (value.has(clientId)) {
+            if (appClientSocketMap.has(key)) {
+                var rsp = new Map()
+                rsp.name = message_request_bind
+                rsp.success = true
+                rsp.data = new Map()
+                rsp.data.app = key
+                sendMessageToClient(ws, rsp)
+            }
+        }
+    })
+}
+
 ///web端绑定手机
 function bindApp(ws, clientId, obj) {
     var appClientId = obj.data.app
     console.log(`bindApp: appClientId=${appClientId} webClientId=${clientId}`)
-    webClientSocketMap.set(clientId, ws)
     if (bindMap.has(appClientId)) {
         var set = bindMap.get(appClientId);
         set.add(clientId)
@@ -97,7 +119,9 @@ function bindApp(ws, clientId, obj) {
 ///web端取消绑定
 function unbindApp(ws, clientId, obj) {
     console.log(`unbindApp: ${clientId}`)
-    deleteWebClient(clientId, true)
+    bindMap.forEach(function (value, key) {
+        value.delete(clientId)
+    })
     obj.success = true
     sendMessageToClient(ws, obj)
 }
@@ -159,11 +183,9 @@ function sendMessageToClient(ws, map) {
 function onClientClose(clientId) {
     console.log(`client close: ${clientId}`)
     if (appClientSocketMap.has(clientId)) {
-        ///app端掉线时，清除绑定关系
         deleteAppClient(clientId)
     } else if (webClientSocketMap.has(clientId)) {
-        ///web端掉线时，不清除绑定关系
-        deleteWebClient(clientId, false)
+        deleteWebClient(clientId)
     }
 }
 
@@ -187,15 +209,9 @@ function deleteAppClient(clientId) {
     // bindMap.delete(clientId)
 }
 
-function deleteWebClient(clientId, unbind) {
+function deleteWebClient(clientId) {
     console.log(`deleteWebClient: ${clientId}`)
     webClientSocketMap.delete(clientId)
-    if (unbind) {
-        bindMap.forEach(function (value, key) {
-            value.delete(clientId)
-        })
-    }
-
 }
 
 function onClientError(clientId, error) {
