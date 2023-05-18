@@ -66,15 +66,17 @@ function registerApp(ws, clientId, obj) {
         //通知web端自动连接
         if (bindMap.has(clientId)) {
             var set = bindMap.get(clientId)
+            console.log(`registerApp: notify web clients:${set.size}`)
             for (var id of set) {
                 if (webClientSocketMap.has(id)) {
+                    console.log(`registerApp: notify web :${id}`)
                     var socket = webClientSocketMap.get(id)
-                    var obj = new Map()
-                    obj.name = message_request_bind
-                    obj.success = true
-                    obj.data = new Map()
-                    obj.data.app = clientId
-                    sendMessageToClient(socket, obj)
+                    var rsp = new Map()
+                    rsp.name = message_request_bind
+                    rsp.success = true
+                    rsp.data = new Map()
+                    rsp.data.app = clientId
+                    sendMessageToClient(socket, rsp)
                 }
             }
         }
