@@ -50,34 +50,31 @@ function onReceiveData(ws, clientId, data) {
 //手机端注册，注册后网页端可以查到该设备
 function registerApp(ws, clientId, obj) {
     appClientSocketMap.set(clientId, ws)
-    var hasRegisterd = bindMap.has(clientId);
-    console.log(`registerApp: ${clientId} hasRegisterd=${hasRegisterd}`)
-    if (!hasRegisterd) {
-        if (!bindMap.has(clientId)) {
-            bindMap.set(clientId, new Set())
-        }
-        if (obj.info) {
-            appInfoMap.set(clientId, obj.info)
-        }
-        console.log(`registerApp: ${clientId} success`)
-        obj.success = true
-        sendMessageToClient(ws, obj)
+    console.log(`registerApp: ${clientId}`)
+    if (!bindMap.has(clientId)) {
+        bindMap.set(clientId, new Set())
+    }
+    if (obj.info) {
+        appInfoMap.set(clientId, obj.info)
+    }
+    console.log(`registerApp: ${clientId} success`)
+    obj.success = true
+    sendMessageToClient(ws, obj)
 
-        //通知web端自动连接
-        if (bindMap.has(clientId)) {
-            var set = bindMap.get(clientId)
-            console.log(`registerApp: notify web clients:${set.size}`)
-            for (var id of set) {
-                if (webClientSocketMap.has(id)) {
-                    console.log(`registerApp: notify web :${id}`)
-                    var socket = webClientSocketMap.get(id)
-                    var rsp = new Map()
-                    rsp.name = message_request_bind
-                    rsp.success = true
-                    rsp.data = new Map()
-                    rsp.data.app = clientId
-                    sendMessageToClient(socket, rsp)
-                }
+    //通知web端自动连接
+    if (bindMap.has(clientId)) {
+        var set = bindMap.get(clientId)
+        console.log(`registerApp: notify web clients:${set.size}`)
+        for (var id of set) {
+            if (webClientSocketMap.has(id)) {
+                console.log(`registerApp: notify web :${id}`)
+                var socket = webClientSocketMap.get(id)
+                var rsp = new Map()
+                rsp.name = message_request_bind
+                rsp.success = true
+                rsp.data = new Map()
+                rsp.data.app = clientId
+                sendMessageToClient(socket, rsp)
             }
         }
     }
