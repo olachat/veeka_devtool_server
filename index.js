@@ -53,13 +53,31 @@ function registerApp(ws, clientId, obj) {
     var hasRegisterd = bindMap.has(clientId);
     console.log(`registerApp: ${clientId} hasRegisterd=${hasRegisterd}`)
     if (!hasRegisterd) {
-        bindMap.set(clientId, new Set())
+        if (!bindMap.has(clientId)) {
+            bindMap.set(clientId, new Set())
+        }
         if (obj.info) {
             appInfoMap.set(clientId, obj.info)
         }
         console.log(`registerApp: ${clientId} success`)
         obj.success = true
         sendMessageToClient(ws, obj)
+
+        //通知web端自动连接
+        if (bindApp.has(clientId)) {
+            var set = bindMap.get(clientId)
+            for (var id of set) {
+                if (webClientSocketMap.has(id)) {
+                    var socket = webClientSocketMap.get(id)
+                    var obj = new Map()
+                    obj.name = message_request_bind
+                    obj.success = true
+                    obj.data = new Map()
+                    obj.data.app = clientId
+                    sendMessageToClient(socket, obj)
+                }
+            }
+        }
     }
 }
 
@@ -154,7 +172,7 @@ function deleteAppClient(clientId) {
     console.log(`deleteApp: ${clientId}`)
     appClientSocketMap.delete(clientId)
     appInfoMap.delete(clientId)
-    ///通知web端
+    ///通知web端断开
     if (bindMap.has(clientId)) {
         var set = bindMap.get(clientId)
         for (var id of set) {
@@ -166,6 +184,7 @@ function deleteAppClient(clientId) {
             }
         }
     }
+    //不清空绑定关系，下次app注册时自动连接web端
     bindMap.delete(clientId)
 }
 
