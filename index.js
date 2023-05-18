@@ -64,7 +64,7 @@ function registerApp(ws, clientId, obj) {
         sendMessageToClient(ws, obj)
 
         //通知web端自动连接
-        if (bindApp.has(clientId)) {
+        if (bindMap.has(clientId)) {
             var set = bindMap.get(clientId)
             for (var id of set) {
                 if (webClientSocketMap.has(id)) {
@@ -185,7 +185,7 @@ function deleteAppClient(clientId) {
         }
     }
     //不清空绑定关系，下次app注册时自动连接web端
-    bindMap.delete(clientId)
+    // bindMap.delete(clientId)
 }
 
 function deleteWebClient(clientId, unbind) {
